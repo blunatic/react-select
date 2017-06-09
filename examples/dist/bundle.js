@@ -1908,7 +1908,7 @@ var Select = _react2['default'].createClass({
 		);
 	},
 
-	renderValue: function renderValue(valueArray, isOpen) {
+	renderValue: function renderValue(valueArray, isOpen, focusedOptionIndex) {
 		var _this4 = this;
 
 		var renderLabel = this.props.valueRenderer || this.getOptionLabel;
@@ -1953,7 +1953,8 @@ var Select = _react2['default'].createClass({
 					onClick: onClick,
 					value: valueArray[0]
 				},
-				renderLabel(valueArray[0])
+				renderLabel(valueArray[0]),
+				this.renderInput(valueArray, focusedOptionIndex)
 			);
 		}
 	},
@@ -2243,8 +2244,7 @@ var Select = _react2['default'].createClass({
 				_react2['default'].createElement(
 					'span',
 					{ className: 'Select-multi-value-wrapper', id: this._instancePrefix + '-value' },
-					this.renderValue(valueArray, isOpen),
-					this.renderInput(valueArray, focusedOptionIndex)
+					this.renderValue(valueArray, isOpen, focusedOptionIndex)
 				),
 				removeMessage,
 				this.renderLoading(),
