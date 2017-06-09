@@ -794,7 +794,7 @@ const Select = React.createClass({
 		);
 	},
 
-	renderValue (valueArray, isOpen) {
+	renderValue (valueArray, isOpen, focusedOptionIndex) {
 		let renderLabel = this.props.valueRenderer || this.getOptionLabel;
 		let ValueComponent = this.props.valueComponent;
 		if (!valueArray.length) {
@@ -829,6 +829,7 @@ const Select = React.createClass({
 					value={valueArray[0]}
 				>
 					{renderLabel(valueArray[0])}
+					{this.renderInput(valueArray, focusedOptionIndex)}
 				</ValueComponent>
 			);
 		}
@@ -1108,8 +1109,7 @@ const Select = React.createClass({
 					onTouchMove={this.handleTouchMove}
 				>
 					<span className="Select-multi-value-wrapper" id={this._instancePrefix + '-value'}>
-						{this.renderValue(valueArray, isOpen)}
-						{this.renderInput(valueArray, focusedOptionIndex)}
+						{this.renderValue(valueArray, isOpen, focusedOptionIndex)}
 					</span>
 					{removeMessage}
 					{this.renderLoading()}
