@@ -814,6 +814,7 @@ const Select = React.createClass({
 						value={value}
 					>
 						{renderLabel(value, i)}
+						{this.renderInput(valueArray, focusedOptionIndex)}
 						<span className="Select-aria-only">&nbsp;</span>
 					</ValueComponent>
 				);
