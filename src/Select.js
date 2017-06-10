@@ -46,6 +46,7 @@ const Select = React.createClass({
 
 	propTypes: {
 		addLabelText: React.PropTypes.string,       // placeholder displayed when you want to add a label on a multi-value input
+		'aria-describedby': React.PropTypes.string,	// HTML ID(s) of element(s) that should be used to describe this input (for assistive tech)
 		'aria-label': React.PropTypes.string,       // Aria label (for assistive tech)
 		'aria-labelledby': React.PropTypes.string,	// HTML ID of an element that should be used as the label (for assistive tech)
 		arrowRenderer: React.PropTypes.func,				// Create drop-down caret element
@@ -164,6 +165,7 @@ const Select = React.createClass({
 
 	getInitialState () {
 		return {
+			hasInputChange: false,
 			inputValue: '',
 			isFocused: false,
 			isOpen: false,
@@ -272,7 +274,7 @@ const Select = React.createClass({
 	},
 
 	focus () {
-		if (!this.input) return;
+		if (!this.input) return;		
 		this.input.focus();
 
 		if (this.props.openAfterFocus) {
@@ -338,31 +340,38 @@ const Select = React.createClass({
 			});
 		}
 
+		const inputLabel = this.getInputLabel();
+
+		// determines if the user mouse downed on the actual ValueComponent excluding placeholder text
+		const isOnValue = this.valueComponent && (this.valueComponent.valueNode === event.target) ? true : false;
+
+		// clears value so that the cursor will be a the end of input then the component re-renders
+		this.input.getInput().value = '';
+	
 		if (this.state.isFocused) {
 			// On iOS, we can get into a state where we think the input is focused but it isn't really,
 			// since iOS ignores programmatic calls to input.focus() that weren't triggered by a click event.
 			// Call focus() again here to be safe.
 			this.focus();
-
-			let input = this.input;
-			if (typeof input.getInput === 'function') {
-				// Get the actual DOM input if the ref is an <AutosizeInput /> component
-				input = input.getInput();
-			}
-
-			// clears the value so that the cursor will be at the end of input when the component re-renders
-			input.value = '';
-
-			// if the input is focused, ensure the menu is open
+		
 			this.setState({
 				isOpen: true,
 				isPseudoFocused: false,
+				inputValue: inputLabel
+			}, () => {
+				isOnValue && this.input.select();
 			});
 		} else {
 			// otherwise, focus the input and open the menu
 			this._openAfterFocus = true;
 			this.focus();
-		}
+
+			this.setState({
+				inputValue: inputLabel
+			}, () => {
+				isOnValue && this.input.select();
+			});
+		}		
 	},
 
 	handleMouseDownOnArrow (event) {
@@ -398,12 +407,14 @@ const Select = React.createClass({
 	closeMenu () {
 		if(this.props.onCloseResetsInput) {
 			this.setState({
+				hasInputChange: false,
 				isOpen: false,
 				isPseudoFocused: this.state.isFocused && !this.props.multi,
 				inputValue: ''
 			});
 		} else {
 			this.setState({
+				hasInputChange: false,
 				isOpen: false,
 				isPseudoFocused: this.state.isFocused && !this.props.multi,
 				inputValue: this.state.inputValue
@@ -414,13 +425,20 @@ const Select = React.createClass({
 
 	handleInputFocus (event) {
 		if (this.props.disabled) return;
-		var isOpen = this.state.isOpen || this._openAfterFocus || this.props.openOnFocus;
+		const isOpen = this.state.isOpen || this._openAfterFocus || this.props.openOnFocus;
 		if (this.props.onFocus) {
 			this.props.onFocus(event);
 		}
+
+		// To make the react-select act more natively, render the input value with the corresponding label on focus. However, we 
+		// cannot do this for custom valueRenderer's bc the label can be manipulated during render (e.g. option.label.toUpperCase())
+		// so the option labels could be inconsistent.
+		let inputLabel = this.getInputLabel();
+
 		this.setState({
 			isFocused: true,
-			isOpen: isOpen
+			isOpen: isOpen,
+			inputValue: inputLabel
 		});
 		this._openAfterFocus = false;
 	},
@@ -436,6 +454,7 @@ const Select = React.createClass({
 			this.props.onBlur(event);
 		}
 		var onBlurredState = {
+			hasInputChange: false,
 			isFocused: false,
 			isOpen: false,
 			isPseudoFocused: false,
@@ -458,6 +477,7 @@ const Select = React.createClass({
 		}
 
 		this.setState({
+			hasInputChange: true,
 			isOpen: true,
 			isPseudoFocused: false,
 			inputValue: newInputValue,
@@ -621,6 +641,7 @@ const Select = React.createClass({
 			});
 		} else {
 			this.setState({
+				hasInputChange: false,
 				isOpen: false,
 				inputValue: '',
 				isPseudoFocused: this.state.isFocused,
@@ -667,6 +688,7 @@ const Select = React.createClass({
 		event.preventDefault();
 		this.setValue(this.getResetValue());
 		this.setState({
+			hasInputChange: false,
 			isOpen: false,
 			inputValue: '',
 		}, this.focus);
@@ -779,6 +801,15 @@ const Select = React.createClass({
 		return this.state.inputValue;
 	},
 
+	getInputLabel() {
+		let inputLabel = '';
+		if (!this.props.multi && !this.props.valueRenderer && this.props.value) {
+			const valueArray = this.getValueArray(this.props.value);
+			inputLabel = this.getOptionLabel(valueArray[0]);
+		}
+		return inputLabel;
+	},
+
 	selectFocusedOption () {
 		if (this._focusedOption) {
 			return this.selectValue(this._focusedOption);
@@ -794,7 +825,7 @@ const Select = React.createClass({
 		);
 	},
 
-	renderValue (valueArray, isOpen, focusedOptionIndex) {
+	renderValue (valueArray, isOpen) {
 		let renderLabel = this.props.valueRenderer || this.getOptionLabel;
 		let ValueComponent = this.props.valueComponent;
 		if (!valueArray.length) {
@@ -805,32 +836,32 @@ const Select = React.createClass({
 			return valueArray.map((value, i) => {
 				return (
 					<ValueComponent
+						disabled={this.props.disabled || value.clearableValue === false}
 						id={this._instancePrefix + '-value-' + i}
 						instancePrefix={this._instancePrefix}
-						disabled={this.props.disabled || value.clearableValue === false}
 						key={`value-${i}-${value[this.props.valueKey]}`}
 						onClick={onClick}
 						onRemove={this.removeValue}
+						ref={ref => this.valueComponent = ref}
 						value={value}
 					>
 						{renderLabel(value, i)}
-						{this.renderInput(valueArray, focusedOptionIndex)}
 						<span className="Select-aria-only">&nbsp;</span>
 					</ValueComponent>
 				);
 			});
-		} else if (!this.state.inputValue) {
+		} else if (!this.state.inputValue && !isOpen) {
 			if (isOpen) onClick = null;
 			return (
 				<ValueComponent
-					id={this._instancePrefix + '-value-item'}
 					disabled={this.props.disabled}
+					id={this._instancePrefix + '-value-item'}
 					instancePrefix={this._instancePrefix}
 					onClick={onClick}
+					ref={ref => this.valueComponent = ref}
 					value={valueArray[0]}
 				>
 					{renderLabel(valueArray[0])}
-					{this.renderInput(valueArray, focusedOptionIndex)}
 				</ValueComponent>
 			);
 		}
@@ -855,6 +886,7 @@ const Select = React.createClass({
 			'aria-owns': ariaOwns,
 			'aria-haspopup': '' + isOpen,
 			'aria-activedescendant': isOpen ? this._instancePrefix + '-option-' + focusedOptionIndex : this._instancePrefix + '-value',
+			'aria-describedby': this.props['aria-describedby'],
 			'aria-labelledby': this.props['aria-labelledby'],
 			'aria-label': this.props['aria-label'],
 			className: className,
@@ -921,7 +953,7 @@ const Select = React.createClass({
 
 	renderArrow () {
 		const onMouseDown = this.handleMouseDownOnArrow;
-                const isOpen = this.state.isOpen;
+       	const isOpen = this.state.isOpen;
 		const arrow = this.props.arrowRenderer({ onMouseDown, isOpen });
 
 		return (
@@ -935,7 +967,7 @@ const Select = React.createClass({
 	},
 
 	filterOptions (excludeOptions) {
-		var filterValue = this.state.inputValue;
+		var filterValue = this.state.hasInputChange ? this.state.inputValue : '';
 		var options = this.props.options || [];
 		if (this.props.filterOptions) {
 			// Maintain backwards compatibility with boolean attribute
@@ -1026,7 +1058,14 @@ const Select = React.createClass({
 
 		let focusedOption = this.state.focusedOption || selectedOption;
 		if (focusedOption && !focusedOption.disabled) {
-			const focusedOptionIndex = options.indexOf(focusedOption);
+			let focusedOptionIndex = -1;
+			options.some((option, index) => {
+				const isOptionEqual = option.value === focusedOption.value;
+				if (isOptionEqual) {
+					focusedOptionIndex = index;
+				}
+				return isOptionEqual;
+			});
 			if (focusedOptionIndex !== -1) {
 				return focusedOptionIndex;
 			}
@@ -1110,7 +1149,8 @@ const Select = React.createClass({
 					onTouchMove={this.handleTouchMove}
 				>
 					<span className="Select-multi-value-wrapper" id={this._instancePrefix + '-value'}>
-						{this.renderValue(valueArray, isOpen, focusedOptionIndex)}
+						{this.renderValue(valueArray, isOpen)}
+						{this.renderInput(valueArray, focusedOptionIndex)}
 					</span>
 					{removeMessage}
 					{this.renderLoading()}

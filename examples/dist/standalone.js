@@ -1640,7 +1640,7 @@ var Select = _react2['default'].createClass({
 		);
 	},
 
-	renderValue: function renderValue(valueArray, isOpen, focusedOptionIndex) {
+	renderValue: function renderValue(valueArray, isOpen) {
 		var _this4 = this;
 
 		var renderLabel = this.props.valueRenderer || this.getOptionLabel;
@@ -1667,7 +1667,6 @@ var Select = _react2['default'].createClass({
 						value: value
 					},
 					renderLabel(value, i),
-					_this4.renderInput(valueArray, focusedOptionIndex),
 					_react2['default'].createElement(
 						'span',
 						{ className: 'Select-aria-only' },
@@ -1686,8 +1685,7 @@ var Select = _react2['default'].createClass({
 					onClick: onClick,
 					value: valueArray[0]
 				},
-				renderLabel(valueArray[0]),
-				this.renderInput(valueArray, focusedOptionIndex)
+				renderLabel(valueArray[0])
 			);
 		}
 	},
@@ -1977,7 +1975,8 @@ var Select = _react2['default'].createClass({
 				_react2['default'].createElement(
 					'span',
 					{ className: 'Select-multi-value-wrapper', id: this._instancePrefix + '-value' },
-					this.renderValue(valueArray, isOpen, focusedOptionIndex)
+					this.renderValue(valueArray, isOpen),
+					this.renderInput(valueArray, focusedOptionIndex)
 				),
 				removeMessage,
 				this.renderLoading(),
